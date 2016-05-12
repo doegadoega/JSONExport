@@ -64,36 +64,15 @@
                        {
                        "forEachProperty": "\t\t<!VarName!> <- map[\"<!JsonKeyName!>\"]\n",
                        "bodyEnd": "\t}\n",
-                       "signature": "\tfunc mapping(map: Map)",
+                       "signature": "\n\trequired init?(_ map: Map)  {}\n\tfunc mapping(map: Map) ",
                        "forEachCustomTypeProperty": "\t\t<!VarName!> <- map[\"<!JsonKeyName!>\"]\n",
                        "forEachArrayOfCustomTypeProperty": "\t\t<!VarName!> <- map[\"<!JsonKeyName!>\"]\n",
                        "returnStatement": "\t\t\n",
                        "body": "",
                        "comment": "",
                        "bodyStart": "\n\t{\n"
-                       },
-                       {
-                       "forEachProperty": "         <!VarName!> = aDecoder.decodeObjectForKey(\"<!JsonKeyName!>\") as? <!VarType!>\n",
-                       "bodyEnd": "\n\t}\n",
-                       "signature": "    @objc required init(coder aDecoder: NSCoder)",
-                       "forEachCustomTypeProperty": "         <!VarName!> = aDecoder.decodeObjectForKey(\"<!JsonKeyName!>\") as? <!VarType!>\n",
-                       "forEachArrayOfCustomTypeProperty": "         <!VarName!> = aDecoder.decodeObjectForKey(\"<!JsonKeyName!>\") as? <!VarType!>\n",
-                       "returnStatement": "",
-                       "body": "",
-                       "comment": "\n    /**\n    * NSCoding required initializer.\n    * Fills the data from the passed decoder\n    */\n",
-                       "bodyStart": "\n\t{\n"
-                       },
-                       {
-                       "forEachProperty": "\t\tif <!VarName!> != nil{\n\t\t\taCoder.encodeObject(<!VarName!>, forKey: \"<!JsonKeyName!>\")\n\t\t}\n",
-                       "bodyEnd": "\n\t}\n",
-                       "signature": "    @objc func encodeWithCoder(aCoder: NSCoder)",
-                       "forEachCustomTypeProperty": "\t\tif <!VarName!> != nil{\n\t\t\taCoder.encodeObject(<!VarName!>, forKey: \"<!JsonKeyName!>\")\n\t\t}\n",
-                       "forEachArrayOfCustomTypeProperty": "\t\tif <!VarName!> != nil{\n\t\t\taCoder.encodeObject(<!VarName!>, forKey: \"<!JsonKeyName!>\")\n\t\t}\n",
-                       "returnStatement": "",
-                       "body": "",
-                       "comment": "\n    /**\n    * NSCoding required method.\n    * Encodes mode properties into the decoder\n    */\n",
-                       "bodyStart": "\n\t{\n"
                        }
+
                        ],
     "dataTypes": {
         "stringType": "String",
@@ -104,32 +83,9 @@
         "longType": "Double",
         "intType": "Int"
     },
-    "wordsToRemoveToGetArrayElementsType": [
-                                            "[",
-                                            "]"
-                                            ],
-    "defaultParentWithUtilityMethods": "NSObject, NSCoding, Mappable",
+    "wordsToRemoveToGetArrayElementsType": ["[","]"],
+    "defaultParentWithUtilityMethods": "Mappable",
     "constructors": [
-                     {
-                     "fetchBasicTypeWithSpecialNeedsPropertyFromMap": "",
-                     "bodyStart": "{\n\t\treturn <!ModelName!>()",
-                     "bodyEnd": "\n\t}\n",
-                     "fetchBasicTypePropertyFromMap": "",
-                     "signature": "\tclass func newInstance(map: Map) -> Mappable?",
-                     "fetchArrayOfCustomTypePropertyFromMap": "",
-                     "comment": "",
-                     "fetchCustomTypePropertyFromMap": ""
-                     },
-                     {
-                     "fetchBasicTypeWithSpecialNeedsPropertyFromMap": "",
-                     "bodyStart": "{",
-                     "bodyEnd": "}\n",
-                     "fetchBasicTypePropertyFromMap": "",
-                     "signature": "\tprivate override init()",
-                     "fetchArrayOfCustomTypePropertyFromMap": "",
-                     "comment": "",
-                     "fetchCustomTypePropertyFromMap": ""
-                     }
                      ],
     "modelDefinition": "\nclass <!ModelName!>",
     "genericType": "AnyObject",
@@ -144,6 +100,6 @@
     "instanceVarDefinition": "\tvar <!VarName!> : <!VarType!>?\n",
     "supportsFirstLineStatement": "false",
     "modelEnd": "\n}",
-    "staticImports": "import Foundation",
+    "staticImports": "import Foundation\nimport ObjectMapper",
     "langName": "Swift"
 }
