@@ -64,7 +64,7 @@
                        {
                        "forEachProperty": "\t\t<!VarName!> <- map[\"<!JsonKeyName!>\"]\n",
                        "bodyEnd": "\t}\n",
-                       "signature": "\n\trequired init?(_ map: Map)  {}\n\tfunc mapping(map: Map) ",
+                       "signature": "\n\tinit(){}\n\trequired init?(_ map: Map)  {}\n\tfunc mapping(map: Map) ",
                        "forEachCustomTypeProperty": "\t\t<!VarName!> <- map[\"<!JsonKeyName!>\"]\n",
                        "forEachArrayOfCustomTypeProperty": "\t\t<!VarName!> <- map[\"<!JsonKeyName!>\"]\n",
                        "returnStatement": "\t\t\n",
