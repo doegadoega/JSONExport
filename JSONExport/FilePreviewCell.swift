@@ -21,27 +21,29 @@ class FilePreviewCell: NSTableCellView, NSTextViewDelegate {
     var file: FileRepresenter!{
         didSet{
             if file != nil{
-                var fileName = file.className
-                fileName += "."
-                if file is HeaderFileRepresenter{
-                    fileName += file.lang.headerFileData.headerFileExtension
-                }else{
-                    fileName += file.lang.fileExtension
-                }
-                classNameLabel.stringValue = fileName
-                if(textView != nil){
-                    textView.string = file.toString()
-                }
-                
-                if file.includeConstructors{
-                    constructors.state = NSOnState
-                }else{
-                    constructors.state = NSOffState
-                }
-                if file.includeUtilities{
-                    utilities.state = NSOnState
-                }else{
-                    utilities.state = NSOffState
+                DispatchQueue.main.async {
+                    var fileName = self.file.className
+                    fileName += "."
+                    if self.file is HeaderFileRepresenter{
+                        fileName += self.file.lang.headerFileData.headerFileExtension
+                    }else{
+                        fileName += self.file.lang.fileExtension
+                    }
+                    self.classNameLabel.stringValue = fileName
+                    if(self.textView != nil){
+                        self.textView.string = self.file.toString()
+                    }
+                    
+                    if self.file.includeConstructors{
+                        self.constructors.state = NSControl.StateValue.on
+                    }else{
+                        self.constructors.state = NSControl.StateValue.off
+                    }
+                    if self.file.includeUtilities{
+                        self.utilities.state = NSControl.StateValue.on
+                    }else{
+                        self.utilities.state = NSControl.StateValue.off
+                    }
                 }
             }else{
                 classNameLabel.stringValue = ""
@@ -55,7 +57,9 @@ class FilePreviewCell: NSTableCellView, NSTextViewDelegate {
         super.awakeFromNib()
         if textView != nil{
             textView.delegate = self
-            setupNumberedTextView()
+            DispatchQueue.main.async {
+                self.setupNumberedTextView()
+            }
         }
     }
     
@@ -66,30 +70,28 @@ class FilePreviewCell: NSTableCellView, NSTextViewDelegate {
         scrollView.hasVerticalRuler = true
         scrollView.verticalRulerView = lineNumberView
         scrollView.rulersVisible = true
-        textView.font = NSFont.userFixedPitchFontOfSize(NSFont.smallSystemFontSize())
+        textView.font = NSFont.userFixedPitchFont(ofSize: NSFont.smallSystemFontSize)
         
     }
     
-    @IBAction func toggleConstructors(sender: NSButtonCell)
+    @IBAction func toggleConstructors(_ sender: NSButtonCell)
     {
         if file != nil{
-            file.includeConstructors = (sender.state == NSOnState)
+            file.includeConstructors = (sender.state == NSControl.StateValue.off)
             textView.string = file.toString()
             
         }
     }
     
-    @IBAction func toggleUtilityMethods(sender: NSButtonCell)
+    @IBAction func toggleUtilityMethods(_ sender: NSButtonCell)
     {
         if file != nil{
-            file.includeUtilities = (sender.state == NSOnState)
+            file.includeUtilities = (sender.state == NSControl.StateValue.on)
             textView.string = file.toString()
         }
     }
     
-    func textDidChange(notification: NSNotification) {
-        file.fileContent = textView.string ?? file.fileContent
+    func textDidChange(_ notification: Notification) {
+		file.fileContent = textView.string
     }
-    
-    
 }

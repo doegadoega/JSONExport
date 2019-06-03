@@ -70,13 +70,16 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
     
     //Connected to the languages pop up
     @IBOutlet weak var languagesPopup: NSPopUpButton!
-
+    
+    
     //Holds the currently selected language
     var selectedLang : LangModel!
     
     //Returns the title of the selected language in the languagesPopup
+    //Call only from main thread
     var selectedLanguageName : String
-        {
+    {
+        assert(Thread.isMainThread);
         return languagesPopup.titleOfSelectedItem!
     }
     
@@ -88,27 +91,29 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        saveButton.enabled = false
+        saveButton.isEnabled = false
+        sourceText.isAutomaticQuoteSubstitutionEnabled = false
         loadSupportedLanguages()
         setupNumberedTextView()
         setLanguagesSelection()
+        loadLastSelectedLanguage()
         updateUIFieldsForSelectedLanguage()
     }
     
     /**
-    Sets the values of languagesPopup items' titles
-    */
+     Sets the values of languagesPopup items' titles
+     */
     func setLanguagesSelection()
     {
-        let langNames = Array(langs.keys).sort()
+        let langNames = Array(langs.keys).sorted()
         languagesPopup.removeAllItems()
-        languagesPopup.addItemsWithTitles(langNames)
+        languagesPopup.addItems(withTitles: langNames)
         
     }
     
     /**
-    Sets the needed configurations for show the line numbers in the input text view
-    */
+     Sets the needed configurations for show the line numbers in the input text view
+     */
     func setupNumberedTextView()
     {
         let lineNumberView = NoodleLineNumberView(scrollView: scrollView)
@@ -116,97 +121,138 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
         scrollView.hasVerticalRuler = true
         scrollView.verticalRulerView = lineNumberView
         scrollView.rulersVisible = true
-        sourceText.font = NSFont.userFixedPitchFontOfSize(NSFont.smallSystemFontSize())
+        sourceText.font = NSFont.userFixedPitchFont(ofSize: NSFont.smallSystemFontSize)
         
     }
     
     /**
-    Updates the visible fields according to the selected language
-    */
+     Updates the visible fields according to the selected language
+     */
     func updateUIFieldsForSelectedLanguage()
     {
         loadSelectedLanguageModel()
-        if selectedLang.supportsFirstLineStatement != nil && selectedLang.supportsFirstLineStatement!.boolValue{
-            firstLineField.hidden = false
+        if selectedLang.supportsFirstLineStatement != nil && selectedLang.supportsFirstLineStatement!{
+            firstLineField.isHidden = false
             firstLineField.placeholderString = selectedLang.firstLineHint
         }else{
-            firstLineField.hidden = true
+            firstLineField.isHidden = true
         }
         
         if selectedLang.modelDefinitionWithParent != nil || selectedLang.headerFileData?.modelDefinitionWithParent != nil{
-            parentClassName.hidden = false
+            parentClassName.isHidden = false
         }else{
-            parentClassName.hidden = true
+            parentClassName.isHidden = true
         }
     }
     
-    
+    /**
+     Loads last selected language by user
+     */
+    func loadLastSelectedLanguage()
+    {
+        guard let lastSelectedLanguage = UserDefaults.standard.value(forKey: "selectedLanguage") as? String else{
+            return
+        }
+        
+        if langs[lastSelectedLanguage] != nil{
+            languagesPopup.selectItem(withTitle: lastSelectedLanguage)
+        }
+    }
     
     //MARK: - Handling pre defined languages
     func loadSupportedLanguages()
     {
-        if let langFiles = NSBundle.mainBundle().URLsForResourcesWithExtension("json", subdirectory: nil) as [NSURL]!{
+		if let langFiles = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil){
             for langFile in langFiles{
-                if let data = NSData(contentsOfURL: langFile), langDictionary = (try? NSJSONSerialization.JSONObjectWithData(data, options: [])) as? NSDictionary{
+                if let data = try? Data(contentsOf: langFile), let langDictionary = (try? JSONSerialization.jsonObject(with: data, options: [])) as? NSDictionary{
                     let lang = LangModel(fromDictionary: langDictionary)
                     if langs[lang.displayLangName] != nil{
                         continue
                     }
                     langs[lang.displayLangName] = lang
                 }
-                
-                
             }
         }
-        
     }
 
     
+    // MARK: - parse the json file
+    func parseJSONData(jsonData: Data!)
+    {
+        let jsonString = String(data: jsonData, encoding: .utf8)
+        
+        sourceText.string = jsonString!
+    }
     
     //MARK: - Handlind events
     
-    @IBAction func toggleConstructors(sender: AnyObject)
+	@IBAction func openJSONFiles(sender: AnyObject)
+	{
+		let oPanel: NSOpenPanel = NSOpenPanel()
+		oPanel.canChooseDirectories = false
+		oPanel.canChooseFiles = true
+		oPanel.allowsMultipleSelection = false
+		oPanel.allowedFileTypes = ["json","JSON"]
+		oPanel.prompt = "Choose JSON file"
+		
+		oPanel.beginSheetModal(for: self.view.window!) { button in
+			if button.rawValue == NSFileHandlingPanelOKButton {
+				let jsonPath = oPanel.urls.first!.path
+				let fileHandle = FileHandle(forReadingAtPath: jsonPath)
+				let urlStr:String  = oPanel.urls.first!.lastPathComponent
+				self.classNameField.stringValue = urlStr.replacingOccurrences(of: ".json", with: "")
+				self.parseJSONData(jsonData: (fileHandle!.readDataToEndOfFile()))
+			}
+		}
+	}
+    
+    
+    @IBAction func toggleConstructors(_ sender: AnyObject)
     {
         generateClasses()
     }
     
     
-    @IBAction func toggleUtilities(sender: AnyObject)
+    @IBAction func toggleUtilities(_ sender: AnyObject)
     {
         generateClasses()
     }
     
-    @IBAction func rootClassNameChanged(sender: AnyObject) {
+    @IBAction func rootClassNameChanged(_ sender: AnyObject) {
         generateClasses()
     }
     
-    @IBAction func parentClassNameChanged(sender: AnyObject)
-    {
-        generateClasses()
-    }
-    
-    
-    @IBAction func classPrefixChanged(sender: AnyObject)
+    @IBAction func parentClassNameChanged(_ sender: AnyObject)
     {
         generateClasses()
     }
     
     
-    @IBAction func selectedLanguageChanged(sender: AnyObject)
+    @IBAction func classPrefixChanged(_ sender: AnyObject)
+    {
+        generateClasses()
+    }
+    
+    
+    @IBAction func selectedLanguageChanged(_ sender: AnyObject)
     {
         updateUIFieldsForSelectedLanguage()
-        generateClasses();
+        generateClasses()
+        DispatchQueue.main.async {
+            UserDefaults.standard.set(self.selectedLanguageName, forKey: "selectedLanguage")
+        }
+        
     }
     
     
-    @IBAction func firstLineChanged(sender: AnyObject)
+    @IBAction func firstLineChanged(_ sender: AnyObject)
     {
         generateClasses()
     }
     
     //MARK: - NSTextDelegate
     
-    func textDidChange(notification: NSNotification) {
+    func textDidChange(_ notification: Notification) {
         generateClasses()
     }
     
@@ -214,21 +260,20 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
     //MARK: - Language selection handling
     func loadSelectedLanguageModel()
     {
-        selectedLang = langs[selectedLanguageName]
-        
+       selectedLang = langs[self.selectedLanguageName]
     }
     
     
     //MARK: - NSUserNotificationCenterDelegate
-    func userNotificationCenter(center: NSUserNotificationCenter,
-        shouldPresentNotification notification: NSUserNotification) -> Bool
+    func userNotificationCenter(_ center: NSUserNotificationCenter,
+                                shouldPresent notification: NSUserNotification) -> Bool
     {
         return true
     }
     
     
     //MARK: - Showing the open panel and save files
-    @IBAction func saveFiles(sender: AnyObject)
+    @IBAction func saveFiles(_ sender: AnyObject)
     {
         let openPanel = NSOpenPanel()
         openPanel.allowsOtherFileTypes = false
@@ -237,27 +282,28 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
         openPanel.canChooseDirectories = true
         openPanel.canCreateDirectories = true
         openPanel.prompt = "Choose"
-        openPanel.beginSheetModalForWindow(self.view.window!, completionHandler: { (button : Int) -> Void in
-            if button == NSFileHandlingPanelOKButton{
-                
-                self.saveToPath(openPanel.URL!.path!)
-                
-                self.showDoneSuccessfully()
-            }
-        })
+		openPanel.beginSheetModal(for: self.view.window!){ button in
+			if button.rawValue == NSFileHandlingPanelOKButton{
+				self.saveToPath(openPanel.url!.path)
+				self.showDoneSuccessfully()
+			}
+		}
     }
-
+    
     
     /**
-    Saves all the generated files in the specified path
-    
-    - parameter path: in which to save the files
-    */
-    func saveToPath(path : String)
+     Saves all the generated files in the specified path
+     
+     - parameter path: in which to save the files
+     */
+    func saveToPath(_ path : String)
     {
         var error : NSError?
         for file in files{
-            let fileContent = file.fileContent
+            var fileContent = file.fileContent
+            if fileContent == ""{
+                fileContent = file.toString()
+            }
             var fileExtension = selectedLang.fileExtension
             if file is HeaderFileRepresenter{
                 fileExtension = selectedLang.headerFileData.headerFileExtension
@@ -265,7 +311,7 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
             let filePath = "\(path)/\(file.className).\(fileExtension)"
             
             do {
-                try fileContent.writeToFile(filePath, atomically: false, encoding: NSUTF8StringEncoding)
+                try fileContent.write(toFile: filePath, atomically: false, encoding: String.Encoding.utf8)
             } catch let error1 as NSError {
                 error = error1
             }
@@ -273,31 +319,30 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
                 showError(error!)
                 break
             }
-            
         }
     }
     
     
     //MARK: - Messages
     /**
-    Shows the top right notification. Call it after saving the files successfully
-    */
+     Shows the top right notification. Call it after saving the files successfully
+     */
     func showDoneSuccessfully()
     {
         let notification = NSUserNotification()
         notification.title = "Success!"
         notification.informativeText = "Your \(selectedLang.langName) model files have been generated successfully."
-        notification.deliveryDate = NSDate()
-
-        let center = NSUserNotificationCenter.defaultUserNotificationCenter()
+        notification.deliveryDate = Date()
+        
+        let center = NSUserNotificationCenter.default
         center.delegate = self
-        center.deliverNotification(notification)
+        center.deliver(notification)
     }
     
     /**
-    Shows an NSAlert for the passed error
-    */
-    func showError(error: NSError!)
+     Shows an NSAlert for the passed error
+     */
+    func showError(_ error: NSError!)
     {
         if error == nil{
             return;
@@ -307,22 +352,22 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
     }
     
     /**
-    Shows the passed error status message
-    */
-    func showErrorStatus(errorMessage: String)
+     Shows the passed error status message
+     */
+    func showErrorStatus(_ errorMessage: String)
     {
-
-        statusTextField.textColor = NSColor.redColor()
+        
+        statusTextField.textColor = NSColor.red
         statusTextField.stringValue = errorMessage
     }
     
     /**
-    Shows the passed success status message
-    */
-    func showSuccessStatus(successMessage: String)
+     Shows the passed success status message
+     */
+    func showSuccessStatus(_ successMessage: String)
     {
         
-        statusTextField.textColor = NSColor.greenColor()
+        statusTextField.textColor = NSColor.green
         statusTextField.stringValue = successMessage
     }
     
@@ -330,58 +375,62 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
     
     //MARK: - Generate files content
     /**
-    Validates the sourceText string input, and takes any needed action to generate the model classes and view them in the preview panel
-    */
+     Validates the sourceText string input, and takes any needed action to generate the model classes and view them in the preview panel
+     */
     func generateClasses()
     {
-        saveButton.enabled = false
-        var str = sourceText.string!
+        saveButton.isEnabled = false
+        var str = sourceText.string
         
-        if str.characters.count == 0{
-            //Nothing to do, just clear any generated files
-            files.removeAll(keepCapacity: false)
-            tableView.reloadData()
+        if str.count == 0{
+            runOnUiThread{
+                //Nothing to do, just clear any generated files
+                self.files.removeAll(keepingCapacity: false)
+                self.tableView.reloadData()
+            }
             return;
         }
         var rootClassName = classNameField.stringValue
-        if rootClassName.characters.count == 0{
+        if rootClassName.count == 0{
             rootClassName = "RootClass"
         }
-        sourceText.editable = false
+        sourceText.isEditable = false
         //Do the lengthy process in background, it takes time with more complicated JSONs
         runOnBackground {
-            str = jsonStringByRemovingUnwantedCharacters(str)
-            if let data = str.dataUsingEncoding(NSUTF8StringEncoding){
+            str = stringByRemovingControlCharacters(str)
+            if let data = str.data(using: String.Encoding.utf8){
                 var error : NSError?
                 do {
-                    let jsonData : AnyObject = try NSJSONSerialization.JSONObjectWithData(data, options: [])
+                    let jsonData : Any = try JSONSerialization.jsonObject(with: data, options: [])
                     var json : NSDictionary!
                     if jsonData is NSDictionary{
                         //fine nothing to do
-                        json = jsonData as! NSDictionary
+						json = jsonData as? NSDictionary
                     }else{
                         json = unionDictionaryFromArrayElements(jsonData as! NSArray)
                     }
-                    self.loadSelectedLanguageModel()
-                    self.files.removeAll(keepCapacity: false)
-                    let fileGenerator = self.prepareAndGetFilesBuilder()
-                    fileGenerator.addFileWithName(&rootClassName, jsonObject: json, files: &self.files)
-                    fileGenerator.fixReferenceMismatches(inFiles: self.files)
-                    self.files = Array(self.files.reverse())
+                    
                     runOnUiThread{
-                        self.sourceText.editable = true
+                        self.loadSelectedLanguageModel()
+                        self.files.removeAll(keepingCapacity: false)
+                        let fileGenerator = self.prepareAndGetFilesBuilder()
+                        fileGenerator.addFileWithName(&rootClassName, jsonObject: json, files: &self.files)
+                        fileGenerator.fixReferenceMismatches(inFiles: self.files)
+                        self.files = Array(self.files.reversed())
+                        self.sourceText.isEditable = true
                         self.showSuccessStatus("Valid JSON structure")
-                        self.saveButton.enabled = true
+                        self.saveButton.isEnabled = true
                         
                         self.tableView.reloadData()
+                        self.tableView.layout()
                     }
                 } catch let error1 as NSError {
                     error = error1
                     runOnUiThread({ () -> Void in
-                        self.sourceText.editable = true
-                        self.saveButton.enabled = false
+                        self.sourceText.isEditable = true
+                        self.saveButton.isEnabled = false
                         if error != nil{
-                            print(error)
+                            print(error!)
                         }
                         self.showErrorStatus("It seems your JSON object is not valid!")
                     })
@@ -394,17 +443,17 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
     }
     
     /**
-    Creates and returns an instance of FilesContentBuilder. It also configure the values from the UI components to the instance. I.e includeConstructors
-    
-    - returns: instance of configured FilesContentBuilder
-    */
+     Creates and returns an instance of FilesContentBuilder. It also configure the values from the UI components to the instance. I.e includeConstructors
+     
+     - returns: instance of configured FilesContentBuilder
+     */
     func prepareAndGetFilesBuilder() -> FilesContentBuilder
     {
         let filesBuilder = FilesContentBuilder.instance
-        filesBuilder.includeConstructors = (generateConstructors.state == NSOnState)
-        filesBuilder.includeUtilities = (generateUtilityMethods.state == NSOnState)
+        filesBuilder.includeConstructors = (generateConstructors.state == NSControl.StateValue.on)
+        filesBuilder.includeUtilities = (generateUtilityMethods.state == NSControl.StateValue.on)
         filesBuilder.firstLine = firstLineField.stringValue
-        filesBuilder.lang = selectedLang
+        filesBuilder.lang = selectedLang!
         filesBuilder.classPrefix = classPrefixField.stringValue
         filesBuilder.parentClassName = parentClassName.stringValue
         return filesBuilder
@@ -414,23 +463,22 @@ class ViewController: NSViewController, NSUserNotificationCenterDelegate, NSTabl
     
     
     //MARK: - NSTableViewDataSource
-    func numberOfRowsInTableView(tableView: NSTableView) -> Int
+    func numberOfRows(in tableView: NSTableView) -> Int
     {
         return files.count
     }
     
     
     //MARK: - NSTableViewDelegate
-    func tableView(tableView: NSTableView, viewForTableColumn tableColumn: NSTableColumn?, row: Int) -> NSView?
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView?
     {
-        let cell = tableView.makeViewWithIdentifier("fileCell", owner: self) as! FilePreviewCell
+        let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("fileCell"), owner: self) as! FilePreviewCell
         let file = files[row]
         cell.file = file
         
         return cell
     }
-   
-
+    
+    
     
 }
-
